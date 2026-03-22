@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { API_BASE } from "@/lib/constants";
-import type { VibeState, WebSocketEvent, AgentLogEntry, NegotiationEntry, VisualParams } from "@/lib/types";
+import type { VibeState, WebSocketEvent, AgentLogEntry, NegotiationEntry, VisualParams, TrackQueueItem } from "@/lib/types";
 
 const DEFAULT_STATE: VibeState = {
   energy: 0.4,
@@ -17,6 +17,7 @@ export function useVibeState() {
   const [negotiations, setNegotiations] = useState<NegotiationEntry[]>([]);
   const [visual, setVisual] = useState<VisualParams | null>(null);
   const [lastAgentLine, setLastAgentLine] = useState<{ agent: string; line: string } | null>(null);
+  const [musicQueue, setMusicQueue] = useState<TrackQueueItem[]>([]);
 
   // Load initial state from REST
   useEffect(() => {
@@ -92,6 +93,34 @@ export function useVibeState() {
         setAgentLogs((prev) => [entry, ...prev].slice(0, 100));
         break;
       }
+      case "live_audio_energy": {
+        // Gemini Live real-time crowd analysis — treat like a vibe_update
+        setVibe((prev) => ({
+          ...prev,
+          energy: (data.energy as number) ?? prev.energy,
+          mood: (data.mood as VibeState["mood"]) ?? prev.mood,
+          last_updated: timestamp,
+        }));
+        if (data.description) {
+          setLastAgentLine({ agent: "GeminiLive", line: data.description as string });
+        }
+        // Add to agent log for the feed
+        const liveEntry: AgentLogEntry = {
+          id: `${timestamp}-live`,
+          agent: "GeminiLive",
+          event_type: "live_audio_energy",
+          message: `Live: energy=${((data.energy as number) ?? 0).toFixed(2)} | ${data.description ?? ""}`,
+          timestamp,
+          data,
+        };
+        setAgentLogs((prev) => [liveEntry, ...prev].slice(0, 100));
+        break;
+      }
+      case "music_queue": {
+        const q = (data.queue as TrackQueueItem[]) ?? [];
+        setMusicQueue(q);
+        break;
+      }
       case "negotiation": {
         const neg: NegotiationEntry = {
           from_agent: data.from_agent as string,
@@ -117,5 +146,5 @@ export function useVibeState() {
     }
   }, []);
 
-  return { vibe, agentLogs, negotiations, visual, lastAgentLine, handleEvent };
+  return { vibe, agentLogs, negotiations, musicQueue, visual, lastAgentLine, handleEvent };
 }

@@ -1,5 +1,14 @@
 export type VibeMood = "chill" | "building" | "peak" | "winding_down";
 
+export interface TrackQueueItem {
+  track_name: string;
+  artist: string;
+  youtube_id?: string;
+  thumbnail_url?: string;
+}
+
+export type ReactionEmoji = "🔥" | "❄️" | "⚡" | "💀" | "🎉";
+
 export interface VibeState {
   energy: number;
   mood: VibeMood;
@@ -21,7 +30,7 @@ export interface VibeState {
 }
 
 export interface WebSocketEvent {
-  event_type: "vibe_update" | "music" | "visual" | "social" | "agent_log" | "negotiation" | "user_command";
+  event_type: "vibe_update" | "music" | "visual" | "social" | "agent_log" | "negotiation" | "user_command" | "music_queue" | "live_audio_energy";
   agent: string;
   data: Record<string, unknown>;
   timestamp: number;

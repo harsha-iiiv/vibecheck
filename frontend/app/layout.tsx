@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -21,7 +20,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistMono.variable} h-full`}>
       <body className="h-full" style={{ background: "#07040F", color: "#F1F5F9" }} suppressHydrationWarning>
-        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
         {children}
       </body>
     </html>

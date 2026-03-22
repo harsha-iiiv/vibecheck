@@ -28,7 +28,7 @@ class MusicRequest(Model):
 
 
 class MusicResponse(Model):
-    """DJAgent → MoodAgent: selected track details."""
+    """DJAgent → MoodAgent: selected track details + upcoming queue."""
     track_name: str
     artist: str
     bpm: int
@@ -36,6 +36,7 @@ class MusicResponse(Model):
     spotify_uri: Optional[str] = None
     youtube_id: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    queue: Optional[list] = None   # [{track_name, artist, youtube_id, thumbnail_url}]
 
 
 class VisualUpdate(Model):

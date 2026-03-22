@@ -51,30 +51,19 @@ def _energy_to_mood(energy: float) -> str:
         return "peak"
 
 
-@crowd_agent.on_interval(period=30.0)
+@crowd_agent.on_interval(period=5.0)
 async def report_crowd_energy(ctx: Context):
-    """Sample crowd energy and report to MoodAgent every 30 seconds."""
+    """Sample crowd energy and report to MoodAgent every 5 seconds."""
     global _last_reported_mood, _pending_mood, _pending_count
 
-    # Reduced drift ±0.03 to prevent boundary-crossing flapping
-    drift = random.uniform(-0.03, 0.03)
+    # Minimal drift ±0.01 to reflect actual mic energy accurately
+    drift = random.uniform(-0.01, 0.01)
     energy = round(max(0.0, min(1.0, _latest_audio_energy + drift)), 3)
-    candidate_mood = _energy_to_mood(energy)
-
-    # Hysteresis: require 2 consecutive readings in new mood before switching
-    if candidate_mood == _pending_mood:
-        _pending_count += 1
-    else:
-        _pending_mood = candidate_mood
-        _pending_count = 1
-
-    mood = _pending_mood if _pending_count >= 2 else _last_reported_mood
+    mood = _energy_to_mood(energy)
     _last_reported_mood = mood
 
-    stat_pct = round(abs(drift) * 100, 1)
     ctx.logger.info(
-        f"[CrowdAgent] Energy={energy:.3f} ({'+' if drift >= 0 else ''}{stat_pct}% drift) "
-        f"candidate={candidate_mood} reported={mood} (streak={_pending_count})"
+        f"[CrowdAgent] Energy={energy:.3f} (raw={_latest_audio_energy:.3f}) mood={mood}"
     )
 
     if _mood_agent_address:

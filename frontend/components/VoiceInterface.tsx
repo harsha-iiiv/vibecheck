@@ -23,7 +23,7 @@ export function VoiceInterface({ onCommand, mood = "chill" }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
-  const { isListening, energy, start, stop } = useAudioAnalyzer();
+  const { isListening, energy, liveConnected, start, stop } = useAudioAnalyzer();
   const { speak } = useTTS();
   const colors = VIBE_COLORS[mood];
 
@@ -86,18 +86,31 @@ export function VoiceInterface({ onCommand, mood = "chill" }: Props) {
           </span>
         </motion.button>
 
-        {/* Mic bars while listening */}
+        {/* Mic bars + Gemini Live status */}
         {isListening && (
-          <div className="flex items-end gap-0.5 h-8 flex-shrink-0">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="w-1 rounded-full"
-                style={{ background: colors.primary }}
-                animate={{ height: `${Math.max(20, energy * 100 + Math.random() * 20)}%` }}
-                transition={{ duration: 0.1 }}
-              />
-            ))}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-end gap-0.5 h-8">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="w-1 rounded-full"
+                  style={{ background: colors.primary }}
+                  animate={{ height: `${Math.max(20, energy * 100 + Math.random() * 20)}%` }}
+                  transition={{ duration: 0.1 }}
+                />
+              ))}
+            </div>
+            {/* Gemini Live indicator */}
+            <span
+              className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded-full"
+              style={{
+                color: liveConnected ? "#34D399" : "#94A3B8",
+                background: liveConnected ? "rgba(52,211,153,0.12)" : "rgba(148,163,184,0.08)",
+                border: `1px solid ${liveConnected ? "rgba(52,211,153,0.3)" : "rgba(148,163,184,0.2)"}`,
+              }}
+            >
+              {liveConnected ? "LIVE AI" : "SENSING"}
+            </span>
           </div>
         )}
 

@@ -65,6 +65,18 @@ async def handle_music_request(ctx: Context, sender: str, msg: MusicRequest):
     query = f"{track.get('track_name', '')} {track.get('artist', '')}".strip()
     yt = youtube_music_service.search_track(query) if query else None
 
+    # Build auto-queue from YouTube related tracks
+    queue_items = []
+    if yt and yt.get("youtube_id"):
+        related = youtube_music_service.get_related(yt["youtube_id"])
+        for r in related[:3]:
+            queue_items.append({
+                "track_name": r.get("title", "Unknown"),
+                "artist": ", ".join(r.get("artists", [])) or "Unknown",
+                "youtube_id": r.get("youtube_id"),
+                "thumbnail_url": r.get("thumbnail_url"),
+            })
+
     response = MusicResponse(
         track_name=track.get("track_name", "Unknown Track"),
         artist=track.get("artist", "Unknown Artist"),
@@ -73,6 +85,7 @@ async def handle_music_request(ctx: Context, sender: str, msg: MusicRequest):
         spotify_uri=track.get("spotify_uri"),
         youtube_id=yt.get("youtube_id") if yt else None,
         thumbnail_url=yt.get("thumbnail_url") if yt else None,
+        queue=queue_items if queue_items else None,
     )
 
     ctx.logger.info(f"[DJAgent] Serving: {response.track_name} — {response.artist} @ {response.bpm}bpm")

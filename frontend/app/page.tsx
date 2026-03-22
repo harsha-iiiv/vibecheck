@@ -10,6 +10,8 @@ import { MusicPanel } from "@/components/MusicPanel";
 import { SocialCard } from "@/components/SocialCard";
 import { AgentFeed } from "@/components/AgentFeed";
 import { VoiceInterface } from "@/components/VoiceInterface";
+import { NegotiationPanel } from "@/components/NegotiationPanel";
+import { CrowdReactions } from "@/components/CrowdReactions";
 import { VIBE_COLORS, VIBE_LABELS } from "@/lib/constants";
 
 // Map display agent name → ElevenLabs voice slot
@@ -22,7 +24,7 @@ const AGENT_VOICE: Record<string, string> = {
 };
 
 export default function Home() {
-  const { vibe, agentLogs, visual, lastAgentLine, handleEvent } = useVibeState();
+  const { vibe, agentLogs, negotiations, musicQueue, visual, lastAgentLine, handleEvent } = useVibeState();
   const { connected } = useWebSocket(handleEvent);
   const { speak } = useTTS();
 
@@ -32,6 +34,7 @@ export default function Home() {
     const voiceSlot = AGENT_VOICE[lastAgentLine.agent] ?? "mood";
     speak(voiceSlot, lastAgentLine.line);
   }, [lastAgentLine, speak]);
+
   const colors = VIBE_COLORS[vibe.mood];
 
   return (
@@ -116,11 +119,11 @@ export default function Home() {
           MAIN LAYOUT (below header, above bottom bar)
       ════════════════════════════════════════ */}
       <div
-        className="absolute left-0 right-0 flex gap-4 px-4"
-        style={{ top: 60, bottom: 110 }}
+        className="absolute left-0 right-0 flex gap-3 px-4"
+        style={{ top: 60, bottom: 116 }}
       >
         {/* ── LEFT COLUMN ── */}
-        <div className="flex flex-col gap-3 w-72 flex-shrink-0">
+        <div className="flex flex-col gap-3 w-72 flex-shrink-0 overflow-y-auto py-3 hide-scrollbar">
           <MusicPanel
             trackName={vibe.music.track_name}
             artist={vibe.music.artist}
@@ -130,6 +133,7 @@ export default function Home() {
             youtubeId={vibe.music.youtube_id}
             thumbnailUrl={vibe.music.thumbnail_url}
             mood={vibe.mood}
+            queue={musicQueue}
           />
           <SocialCard
             content={vibe.social.content}
@@ -159,24 +163,40 @@ export default function Home() {
           <VibeMeter energy={vibe.energy} mood={vibe.mood} />
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="flex flex-col w-72 flex-shrink-0">
-          <AgentFeed logs={agentLogs} mood={vibe.mood} />
+        {/* ── RIGHT COLUMN ── NegotiationPanel top, AgentFeed bottom */}
+        <div className="flex flex-col gap-3 w-72 flex-shrink-0 py-3" style={{ minHeight: 0 }}>
+          <div style={{ flex: "0 0 auto", maxHeight: "45%" }}>
+            <NegotiationPanel negotiations={negotiations} mood={vibe.mood} />
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <AgentFeed logs={agentLogs} mood={vibe.mood} />
+          </div>
         </div>
       </div>
 
       {/* ════════════════════════════════════════
-          BOTTOM COMMAND BAR
+          BOTTOM BAR — Crowd Reactions + Voice
       ════════════════════════════════════════ */}
       <div
-        className="absolute bottom-0 left-0 right-0 z-30 px-4 py-3"
+        className="absolute bottom-0 left-0 right-0 z-30 px-4"
         style={{
-          background: "rgba(7,4,15,0.88)",
+          background: "rgba(7,4,15,0.90)",
           backdropFilter: "blur(20px)",
           borderTop: `1px solid ${colors.primary}22`,
         }}
       >
-        <VoiceInterface mood={vibe.mood} />
+        {/* Crowd reaction strip */}
+        <div
+          className="py-2"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+        >
+          <CrowdReactions mood={vibe.mood} />
+        </div>
+
+        {/* Voice interface */}
+        <div className="py-2">
+          <VoiceInterface mood={vibe.mood} />
+        </div>
       </div>
     </div>
   );

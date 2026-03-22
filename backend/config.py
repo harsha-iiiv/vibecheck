@@ -11,15 +11,23 @@ class Config:
     # Mistral (fallback LLM when Gemini quota exhausted)
     MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "")
 
-    # ElevenLabs
+    # ElevenLabs — eleven_v3 (paid tier) with distinct voices per agent
     ELEVENLABS_API_KEY: str = os.getenv("ELEVENLABS_API_KEY", "")
-    ELEVENLABS_VOICE_IDS: dict = {
-        "mood": os.getenv("ELEVENLABS_MOOD_VOICE_ID", ""),
-        "dj": os.getenv("ELEVENLABS_DJ_VOICE_ID", ""),
-        "crowd": os.getenv("ELEVENLABS_CROWD_VOICE_ID", ""),
-        "visual": os.getenv("ELEVENLABS_VISUAL_VOICE_ID", ""),
-        "social": os.getenv("ELEVENLABS_SOCIAL_VOICE_ID", ""),
-    }
+    ELEVENLABS_MODEL_ID: str = os.getenv("ELEVENLABS_MODEL_ID", "eleven_v3")
+
+    # Per-agent voice IDs (all ElevenLabs premade voices, available on paid plans)
+    # MoodAgent — Daniel: British, authoritative, wise philosopher vibes
+    ELEVENLABS_VOICE_MOOD: str = os.getenv("ELEVENLABS_VOICE_MOOD", "onwK4e9ZLuTAKqWW03F9")
+    # DJAgent — Sam: raspy American, high-energy hype machine
+    ELEVENLABS_VOICE_DJ: str = os.getenv("ELEVENLABS_VOICE_DJ", "yoZ06aMxZJJ28mfd3POQ")
+    # CrowdAgent — Arnold: deep American, robotic data-analyst energy
+    ELEVENLABS_VOICE_CROWD: str = os.getenv("ELEVENLABS_VOICE_CROWD", "VR6AewLTigWG4xSOukaG")
+    # VisualAgent — Callum: transatlantic, intense and dramatic
+    ELEVENLABS_VOICE_VISUAL: str = os.getenv("ELEVENLABS_VOICE_VISUAL", "N2lVS1w4EtoT3dr4eOWO")
+    # SocialAgent — Dorothy: British female, bubbly and excited
+    ELEVENLABS_VOICE_SOCIAL: str = os.getenv("ELEVENLABS_VOICE_SOCIAL", "ThT5KcBeYPX3keUQqHPh")
+    # Fallback default voice (Sarah)
+    ELEVENLABS_DEFAULT_VOICE_ID: str = os.getenv("ELEVENLABS_DEFAULT_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
 
     # MongoDB
     MONGODB_URI: str = os.getenv("MONGODB_URI", "")

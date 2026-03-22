@@ -32,6 +32,19 @@ class TTSRequest(BaseModel):
     text: str
 
 
+class ReactionRequest(BaseModel):
+    emoji: str   # "🔥" | "❄️" | "⚡" | "💀" | "🎉"
+
+
+_REACTION_DELTAS: dict[str, float] = {
+    "🔥": 0.30,   # Single tap: winding_down(0.0) → chill(0.30) — one tap crosses boundary
+    "❄️": -0.25,
+    "⚡": 0.40,   # Single tap: can jump straight to building/peak
+    "💀": -0.35,
+    "🎉": 0.20,
+}
+
+
 # ---------------------------------------------------------------------------
 # Health + state
 # ---------------------------------------------------------------------------
@@ -97,7 +110,7 @@ async def text_to_speech(req: TTSRequest):
     Returns MP3 audio bytes, or 204 No Content if TTS is not configured.
     """
     from config import config
-    print(f"[TTS] agent={req.agent} text='{req.text[:50]}' key_set={bool(config.ELEVENLABS_API_KEY)} voice_id={config.ELEVENLABS_VOICE_IDS.get(req.agent, 'MISSING')}")
+    print(f"[TTS] agent={req.agent} text='{req.text[:50]}' key_set={bool(config.ELEVENLABS_API_KEY)} voice_id={config.ELEVENLABS_DEFAULT_VOICE_ID}")
     audio = elevenlabs_service.speak(req.agent, req.text)
     if audio is None:
         return Response(status_code=204)
@@ -117,6 +130,27 @@ async def get_vibe_history(limit: int = 50):
 async def get_negotiations(limit: int = 20):
     return {"negotiations": mongodb_service.get_negotiations(SESSION_ID, limit)}
 
+
+@router.post("/reaction")
+async def crowd_reaction(req: ReactionRequest):
+    """Crowd emoji reaction — instantly nudges energy and triggers vibe broadcast."""
+    delta = _REACTION_DELTAS.get(req.emoji, 0.05)
+    from agents.mood_agent import apply_reaction
+    await apply_reaction(req.emoji, delta)
+    return {"status": "ok", "emoji": req.emoji, "delta": delta}
+
+
+@router.post("/skip")
+async def skip_track():
+    """Skip current track — dequeues next track in DJAgent's queue."""
+    from agents.mood_agent import skip_to_next
+    await skip_to_next()
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# MongoDB data endpoints
+# ---------------------------------------------------------------------------
 
 @router.get("/debug/db")
 async def db_stats():
