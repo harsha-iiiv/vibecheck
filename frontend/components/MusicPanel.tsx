@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VIBE_COLORS, API_BASE } from "@/lib/constants";
 import type { VibeMood, TrackQueueItem } from "@/lib/types";
@@ -16,10 +16,90 @@ interface Props {
   queue?: TrackQueueItem[];
 }
 
+type PlayMode = "youtube" | "generated" | "idle";
+
 export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, youtubeId, thumbnailUrl, mood = "chill", queue = [] }: Props) {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [playMode, setPlayMode] = useState<PlayMode>("youtube");
+  const [generating, setGenerating] = useState(false);
+  const [genAudioUrl, setGenAudioUrl] = useState<string | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevGenUrl = useRef<string | null>(null);
   const colors = VIBE_COLORS[mood];
+
+  const hasTrack = !!trackName && trackName !== "Waiting for the vibe...";
+
+  // Clean up generated audio object URL on unmount / new generation
+  useEffect(() => {
+    return () => {
+      if (prevGenUrl.current) URL.revokeObjectURL(prevGenUrl.current);
+    };
+  }, []);
+
+  // Auto-play generated audio when URL is set
+  useEffect(() => {
+    if (!genAudioUrl || playMode !== "generated") return;
+    const audio = new Audio(genAudioUrl);
+    audio.loop = true;
+    audio.volume = 0.65;
+    audioRef.current = audio;
+    audio.play().catch(() => {/* autoplay blocked — user must click */});
+    return () => {
+      audio.pause();
+      audio.src = "";
+    };
+  }, [genAudioUrl, playMode]);
+
+  const generateBeats = useCallback(async () => {
+    setGenerating(true);
+    setGenError(null);
+    // Stop any existing generated audio
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (prevGenUrl.current) { URL.revokeObjectURL(prevGenUrl.current); prevGenUrl.current = null; }
+    setGenAudioUrl(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/music/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood, energy: energyLevel ?? 0.5, genre_hint: "" }),
+      });
+
+      if (res.status === 204) {
+        // Backend fell back — switch to YouTube
+        setGenError("Generation timed out — switched to YouTube");
+        setPlayMode("youtube");
+        if (!playerOpen) setPlayerOpen(true);
+        return;
+      }
+
+      if (!res.ok) {
+        setGenError("Generation failed — try YouTube");
+        setPlayMode("youtube");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      prevGenUrl.current = url;
+      setGenAudioUrl(url);
+      setPlayMode("generated");
+    } catch {
+      setGenError("Backend offline");
+      setPlayMode("youtube");
+    } finally {
+      setGenerating(false);
+    }
+  }, [mood, energyLevel, playerOpen]);
+
+  function stopGenerated() {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (prevGenUrl.current) { URL.revokeObjectURL(prevGenUrl.current); prevGenUrl.current = null; }
+    setGenAudioUrl(null);
+    setPlayMode("youtube");
+  }
 
   async function handleSkip() {
     if (skipping || queue.length === 0) return;
@@ -29,7 +109,6 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
     } catch {/* non-blocking */}
     setTimeout(() => setSkipping(false), 1500);
   }
-  const hasTrack = !!trackName && trackName !== "Waiting for the vibe...";
 
   return (
     <div
@@ -41,9 +120,49 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
         boxShadow: `0 0 24px ${colors.primary}18, inset 0 0 24px ${colors.primary}06`,
       }}
     >
+      {/* Generated audio playing indicator */}
+      <AnimatePresence>
+        {playMode === "generated" && genAudioUrl && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 48, opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden flex items-center gap-3 px-4"
+            style={{ background: `${colors.primary}14`, borderBottom: `1px solid ${colors.primary}22` }}
+          >
+            {/* Waveform animation */}
+            <div className="flex items-end gap-0.5 h-6">
+              {[4, 8, 12, 6, 10, 14, 7, 11, 5, 9].map((h, i) => (
+                <motion.div
+                  key={i}
+                  className="w-1 rounded-full"
+                  style={{ background: colors.primary, height: h }}
+                  animate={{ scaleY: [1, 2.2, 0.6, 1.8, 1], opacity: [0.6, 1, 0.7, 1, 0.6] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.07, ease: "easeInOut" }}
+                />
+              ))}
+            </div>
+            <span className="text-xs font-bold tracking-widest" style={{ color: colors.primary }}>
+              AI BEATS
+            </span>
+            <span className="text-[10px] text-slate-500 flex-1">22s loop • ElevenLabs</span>
+            <motion.button
+              onClick={stopGenerated}
+              className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.08)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.1)" }}
+              whileHover={{ color: "#EF4444", borderColor: "#EF4444" }}
+              suppressHydrationWarning
+            >
+              STOP
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* YouTube embed */}
       <AnimatePresence>
-        {playerOpen && youtubeId && (
+        {playerOpen && youtubeId && playMode !== "generated" && (
           <motion.div
             initial={{ height: 0 }}
             animate={{ height: 160 }}
@@ -70,10 +189,60 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
             className="w-1.5 h-1.5 rounded-full"
             style={{ background: colors.primary }}
           />
-          <span className="text-xs tracking-[0.3em] font-bold" style={{ color: colors.primary }}>
+          <span className="text-xs tracking-[0.3em] font-bold flex-1" style={{ color: colors.primary }}>
             NOW PLAYING
           </span>
+          {/* Mode badges */}
+          <div className="flex gap-1">
+            <motion.button
+              onClick={generateBeats}
+              disabled={generating}
+              className="text-[9px] px-2 py-0.5 rounded-full font-bold tracking-wider cursor-pointer"
+              style={{
+                background: playMode === "generated" ? `${colors.primary}30` : "rgba(255,255,255,0.06)",
+                border: `1px solid ${playMode === "generated" ? colors.primary + "66" : "rgba(255,255,255,0.12)"}`,
+                color: playMode === "generated" ? colors.primary : "#94A3B8",
+                opacity: generating ? 0.6 : 1,
+              }}
+              whileTap={{ scale: 0.9 }}
+              title="Generate AI beats"
+              suppressHydrationWarning
+            >
+              {generating ? "⏳ GEN…" : "🤖 BEATS"}
+            </motion.button>
+            {youtubeId && (
+              <motion.button
+                onClick={() => { stopGenerated(); setPlayerOpen(v => !v); }}
+                className="text-[9px] px-2 py-0.5 rounded-full font-bold tracking-wider cursor-pointer"
+                style={{
+                  background: playMode === "youtube" && playerOpen ? `${colors.secondary}30` : "rgba(255,255,255,0.06)",
+                  border: `1px solid ${playMode === "youtube" && playerOpen ? colors.secondary + "66" : "rgba(255,255,255,0.12)"}`,
+                  color: playMode === "youtube" && playerOpen ? colors.secondary : "#94A3B8",
+                }}
+                whileTap={{ scale: 0.9 }}
+                title="Open YouTube player"
+                suppressHydrationWarning
+              >
+                📺 YT
+              </motion.button>
+            )}
+          </div>
         </div>
+
+        {/* Generation error */}
+        <AnimatePresence>
+          {genError && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="text-[10px] text-amber-400 mb-2 pl-2"
+              style={{ borderLeft: "2px solid rgba(251,191,36,0.4)" }}
+            >
+              {genError}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Album art + info */}
         <div className="flex gap-3 items-start">
@@ -94,17 +263,17 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
                 className="w-full h-full flex items-center justify-center text-3xl"
                 style={{ background: `${colors.primary}18` }}
               >
-                🎧
+                {playMode === "generated" ? "🤖" : "🎧"}
               </div>
             )}
-            {/* Play overlay on thumbnail */}
-            {youtubeId && (
+            {/* Play overlay on thumbnail (YouTube only) */}
+            {youtubeId && playMode !== "generated" && (
               <motion.button
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 style={{ background: playerOpen ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.25)" }}
                 whileHover={{ background: "rgba(0,0,0,0.55)" }}
-                onClick={() => setPlayerOpen(v => !v)}
-                title={playerOpen ? "Close player" : "Play track"}
+                onClick={() => { stopGenerated(); setPlayerOpen(v => !v); }}
+                title={playerOpen ? "Close player" : "Play on YouTube"}
               >
                 <AnimatePresence mode="wait">
                   {playerOpen ? (

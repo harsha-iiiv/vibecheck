@@ -21,6 +21,7 @@ export interface VibeState {
     dj_comment?: string;
     youtube_id?: string;
     thumbnail_url?: string;
+    generated_audio_url?: string;
   };
   social: {
     content: string;

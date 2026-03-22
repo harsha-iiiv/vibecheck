@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from agents.mood_agent import get_current_state, event_queue, SESSION_ID
 from agents.protocols import WebSocketEvent
-from services import gemini_service, elevenlabs_service, mongodb_service
+from services import gemini_service, elevenlabs_service, mongodb_service, music_generation_service
 
 router = APIRouter()
 
@@ -34,6 +34,12 @@ class TTSRequest(BaseModel):
 
 class ReactionRequest(BaseModel):
     emoji: str   # "🔥" | "❄️" | "⚡" | "💀" | "🎉"
+
+
+class MusicGenRequest(BaseModel):
+    mood: str = "chill"
+    energy: float = 0.5
+    genre_hint: str = ""
 
 
 _REACTION_DELTAS: dict[str, float] = {
@@ -138,6 +144,28 @@ async def crowd_reaction(req: ReactionRequest):
     from agents.mood_agent import apply_reaction
     await apply_reaction(req.emoji, delta)
     return {"status": "ok", "emoji": req.emoji, "delta": delta}
+
+
+@router.post("/music/generate")
+async def generate_music_track(req: MusicGenRequest):
+    """
+    Generate ambient/beat music using ElevenLabs Sound Generation API.
+    Returns MP3 audio bytes on success, or 204 + YouTube fallback hint on failure.
+    """
+    audio = await music_generation_service.generate_music(
+        mood=req.mood,
+        energy=req.energy,
+        genre_hint=req.genre_hint,
+    )
+    if audio is None:
+        # Signal frontend to fall back to YouTube
+        state = get_current_state()
+        youtube_id = state.get("music", {}).get("youtube_id")
+        return Response(
+            status_code=204,
+            headers={"X-Fallback-Youtube": youtube_id or ""},
+        )
+    return Response(content=audio, media_type="audio/mpeg")
 
 
 @router.post("/skip")

@@ -12,6 +12,8 @@ const QUICK_CMDS = [
   { label: "🌊 CHILL OUT", cmd: "chill out" },
   { label: "🧊 ICE BREAKER", cmd: "icebreaker" },
   { label: "🌙 WIND DOWN", cmd: "wind down" },
+  { label: "🤖 GENERATE BEATS", cmd: "generate beats" },
+  { label: "🎸 PLAY SONG", cmd: "play a song" },
 ];
 
 interface Props {
