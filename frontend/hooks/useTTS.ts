@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { API_BASE } from "@/lib/constants";
 
 function browserSpeak(text: string) {
@@ -17,6 +17,7 @@ function browserSpeak(text: string) {
  */
 export function useTTS() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [speakingAgent, setSpeakingAgent] = useState<string | null>(null);
 
   const cancel = useCallback(() => {
     if (audioRef.current) {
@@ -25,12 +26,14 @@ export function useTTS() {
       audioRef.current = null;
     }
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    setSpeakingAgent(null);
   }, []);
 
   const speak = useCallback(
     async (agent: string, text: string) => {
       if (!text?.trim()) return;
       cancel();
+      setSpeakingAgent(agent);
 
       try {
         const res = await fetch(`${API_BASE}/api/tts`, {
@@ -40,8 +43,10 @@ export function useTTS() {
         });
 
         if (res.status === 204 || !res.ok) {
-          // ElevenLabs unavailable — fall back to browser TTS
           browserSpeak(text);
+          // Browser TTS has no reliable end event — clear after estimated duration
+          const ms = Math.max(2000, text.length * 65);
+          setTimeout(() => setSpeakingAgent(null), ms);
           return;
         }
 
@@ -52,15 +57,22 @@ export function useTTS() {
         audio.onended = () => {
           URL.revokeObjectURL(url);
           audioRef.current = null;
+          setSpeakingAgent(null);
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+          setSpeakingAgent(null);
         };
         await audio.play();
       } catch (e) {
         console.warn("[TTS] Failed, using browser fallback:", e);
         browserSpeak(text);
+        setTimeout(() => setSpeakingAgent(null), Math.max(2000, text.length * 65));
       }
     },
     [cancel]
   );
 
-  return { speak, cancel };
+  return { speak, cancel, speakingAgent };
 }

@@ -5,14 +5,14 @@ import { useVibeState } from "@/hooks/useVibeState";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useTTS } from "@/hooks/useTTS";
 import { VibeCanvas } from "@/components/VibeCanvas";
-import { VibeMeter } from "@/components/VibeMeter";
 import { MusicPanel } from "@/components/MusicPanel";
 import { SocialCard } from "@/components/SocialCard";
 import { AgentFeed } from "@/components/AgentFeed";
 import { VoiceInterface } from "@/components/VoiceInterface";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { CrowdReactions } from "@/components/CrowdReactions";
-import { VIBE_COLORS, VIBE_LABELS } from "@/lib/constants";
+import { AgentNetwork } from "@/components/AgentNetwork";
+import { VIBE_COLORS } from "@/lib/constants";
 
 // Map display agent name → ElevenLabs voice slot
 const AGENT_VOICE: Record<string, string> = {
@@ -26,7 +26,7 @@ const AGENT_VOICE: Record<string, string> = {
 export default function Home() {
   const { vibe, agentLogs, negotiations, musicQueue, visual, lastAgentLine, handleEvent } = useVibeState();
   const { connected } = useWebSocket(handleEvent);
-  const { speak } = useTTS();
+  const { speak, speakingAgent: speakingVoiceSlot } = useTTS();
 
   // Speak agent lines as they arrive from the WebSocket
   useEffect(() => {
@@ -34,6 +34,13 @@ export default function Home() {
     const voiceSlot = AGENT_VOICE[lastAgentLine.agent] ?? "mood";
     speak(voiceSlot, lastAgentLine.line);
   }, [lastAgentLine, speak]);
+
+  // Reverse-map voice slot → full agent name for AgentNetwork
+  const VOICE_TO_AGENT: Record<string, string> = {
+    mood: "MoodAgent", dj: "DJAgent", crowd: "CrowdAgent",
+    visual: "VisualAgent", social: "SocialAgent",
+  };
+  const speakingAgent = speakingVoiceSlot ? (VOICE_TO_AGENT[speakingVoiceSlot] ?? null) : null;
 
   const colors = VIBE_COLORS[vibe.mood];
 
@@ -142,25 +149,16 @@ export default function Home() {
           />
         </div>
 
-        {/* ── CENTER ── VibeMeter + Mood tag */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 pointer-events-none select-none">
-          <motion.div
-            key={vibe.mood}
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, type: "spring" }}
-            className="text-xs tracking-[0.55em] font-bold px-6 py-1.5 rounded-full mb-2"
-            style={{
-              color: colors.primary,
-              background: `${colors.primary}18`,
-              border: `1px solid ${colors.primary}50`,
-              boxShadow: `0 0 20px ${colors.primary}30`,
-            }}
-          >
-            {VIBE_LABELS[vibe.mood]}
-          </motion.div>
-
-          <VibeMeter energy={vibe.energy} mood={vibe.mood} />
+        {/* ── CENTER ── Agent Network (main hero) */}
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0 pointer-events-none select-none">
+          <AgentNetwork
+            mood={vibe.mood}
+            energy={vibe.energy}
+            negotiations={negotiations}
+            agentLogs={agentLogs}
+            speakingAgent={speakingAgent}
+            lastAgentLine={lastAgentLine}
+          />
         </div>
 
         {/* ── RIGHT COLUMN ── NegotiationPanel top, AgentFeed bottom */}
