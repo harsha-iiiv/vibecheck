@@ -36,7 +36,7 @@ export function useTTS() {
       setSpeakingAgent(agent);
 
       try {
-        const res = await fetch(`${API_BASE}/api/tts`, {
+        const res = await fetch(`${API_BASE}/tts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ agent, text }),

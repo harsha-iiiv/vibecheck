@@ -46,7 +46,7 @@ _state = {
     "energy": 0.4,
     "mood": "chill",
     "last_updated": time.time(),
-    "music": {"track_name": "Waiting for the vibe...", "artist": "", "bpm": 0},
+    "music": {"track_name": "The Less I Know the Better", "artist": "Tame Impala", "bpm": 116, "energy_level": 0.40, "dj_comment": "Setting the vibe..."},
     "social": {"content": "Welcome to VibeCheck! 🎉", "prompt_type": "icebreaker"},
 }
 
@@ -167,7 +167,7 @@ mood_agent = Agent(
 )
 
 
-_tick_count = 0
+_tick_count = 7   # Start at 7 so music + social fire on the very first tick (15s after boot)
 _prev_mood: str = "chill"
 
 # Negotiation scripts triggered on mood transitions (adds drama to the UI)

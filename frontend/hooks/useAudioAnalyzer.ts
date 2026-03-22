@@ -38,7 +38,7 @@ export function useAudioAnalyzer(opts: UseAudioAnalyzerOptions = {}) {
 
   const sendEnergyFallback = useCallback(async (e: number) => {
     try {
-      await fetch(`${API_BASE}/api/audio-energy`, {
+      await fetch(`${API_BASE}/audio-energy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ energy: e }),

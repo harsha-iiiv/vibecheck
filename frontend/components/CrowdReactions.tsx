@@ -49,7 +49,7 @@ export function CrowdReactions({ mood = "chill", onReaction }: Props) {
 
     // Send to backend
     try {
-      await fetch(`${API_BASE}/api/reaction`, {
+      await fetch(`${API_BASE}/reaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),

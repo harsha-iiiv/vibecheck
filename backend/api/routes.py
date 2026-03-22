@@ -1,7 +1,9 @@
 """
 REST endpoints for VibeCheck backend.
 """
-from fastapi import APIRouter
+import uuid
+import time
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -10,6 +12,9 @@ from agents.protocols import WebSocketEvent
 from services import gemini_service, elevenlabs_service, mongodb_service, music_generation_service
 
 router = APIRouter()
+
+# In-memory NFT metadata store (hackathon — no DB needed)
+_nft_store: dict[str, dict] = {}
 
 
 class CommandRequest(BaseModel):
@@ -184,3 +189,78 @@ async def skip_track():
 async def db_stats():
     """Dev only — shows in-memory collection sizes (when MongoDB not connected)."""
     return mongodb_service.get_in_memory_stats()
+
+
+# ---------------------------------------------------------------------------
+# Solana NFT metadata endpoints
+# ---------------------------------------------------------------------------
+
+class NftRegisterRequest(BaseModel):
+    track_name: str
+    artist: str = "VibeCheck AI"
+    mood: str = "chill"
+    energy: float = 0.5
+    bpm: int = 120
+    wallet: str = ""          # Phantom wallet address
+
+
+class NftRegisterResponse(BaseModel):
+    mint_id: str
+    metadata_url: str
+    name: str
+    symbol: str = "VIBE"
+    description: str
+
+
+@router.post("/nft/register", response_model=NftRegisterResponse)
+async def register_nft(req: NftRegisterRequest):
+    """
+    Register generated music as NFT metadata.
+    Returns a metadata URL that can be used as the NFT URI.
+    """
+    mint_id = str(uuid.uuid4())[:8].upper()
+    name = f"VibeCheck #{mint_id}"
+    description = (
+        f"AI-generated {req.mood} beat at {req.bpm} BPM, "
+        f"energy {req.energy:.0%}. Created live at BeachHacks 9.0 🏖️🤖"
+    )
+    metadata = {
+        "mint_id": mint_id,
+        "name": name,
+        "symbol": "VIBE",
+        "description": description,
+        "track_name": req.track_name,
+        "artist": req.artist,
+        "mood": req.mood,
+        "energy": req.energy,
+        "bpm": req.bpm,
+        "wallet": req.wallet,
+        "session_id": SESSION_ID,
+        "created_at": int(time.time()),
+        "image": "https://vibecheck.live/og.png",
+        "attributes": [
+            {"trait_type": "Mood", "value": req.mood.title()},
+            {"trait_type": "BPM", "value": req.bpm},
+            {"trait_type": "Energy", "value": f"{req.energy:.0%}"},
+            {"trait_type": "Generator", "value": "ElevenLabs Sound Generation"},
+        ],
+    }
+    _nft_store[mint_id] = metadata
+    from config import config
+    base = getattr(config, "BASE_URL", "http://localhost:8000")
+    metadata_url = f"{base}/api/nft/metadata/{mint_id}"
+    return NftRegisterResponse(
+        mint_id=mint_id,
+        metadata_url=metadata_url,
+        name=name,
+        description=description,
+    )
+
+
+@router.get("/nft/metadata/{mint_id}")
+async def get_nft_metadata(mint_id: str):
+    """Serve NFT metadata JSON (Metaplex / OpenSea compatible)."""
+    meta = _nft_store.get(mint_id.upper())
+    if not meta:
+        raise HTTPException(status_code=404, detail="NFT not found")
+    return meta

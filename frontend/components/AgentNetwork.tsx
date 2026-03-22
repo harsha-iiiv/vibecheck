@@ -80,6 +80,8 @@ function WaveformBars({ cx, cy, color }: { cx: number; cy: number; color: string
             key={i}
             x={bx}
             width={BAR_W}
+            height={d.h1}
+            y={baseY + 14 - d.h1}
             rx={1}
             fill={color}
             animate={{

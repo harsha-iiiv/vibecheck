@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VIBE_COLORS, API_BASE } from "@/lib/constants";
 import type { VibeMood, TrackQueueItem } from "@/lib/types";
+import { SolanaMint } from "./SolanaMint";
 
 interface Props {
   trackName: string;
@@ -61,7 +62,7 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
     setGenAudioUrl(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/music/generate`, {
+      const res = await fetch(`${API_BASE}/music/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mood, energy: energyLevel ?? 0.5, genre_hint: "" }),
@@ -105,7 +106,7 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
     if (skipping || queue.length === 0) return;
     setSkipping(true);
     try {
-      await fetch(`${API_BASE}/api/skip`, { method: "POST" });
+      await fetch(`${API_BASE}/skip`, { method: "POST" });
     } catch {/* non-blocking */}
     setTimeout(() => setSkipping(false), 1500);
   }
@@ -365,6 +366,16 @@ export function MusicPanel({ trackName, artist, bpm, djComment, energyLevel, you
               />
             ))}
           </div>
+        )}
+
+        {/* Solana NFT mint — show when AI beats are playing */}
+        {playMode === "generated" && (
+          <SolanaMint
+            trackName={trackName || "AI Beat"}
+            bpm={bpm}
+            energyLevel={energyLevel ?? 0.5}
+            mood={mood}
+          />
         )}
 
         {/* Up next queue */}

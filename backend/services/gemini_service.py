@@ -149,7 +149,7 @@ def _call(system_prompt: str, user_prompt: str, fallback: str) -> str:
     if client:
         try:
             response = client.models.generate_content(
-                model="gemini-2.0-flash-lite",
+                model="gemini-2.0-flash",
                 contents=user_prompt,
                 config=types.GenerateContentConfig(system_instruction=system_prompt),
             )
